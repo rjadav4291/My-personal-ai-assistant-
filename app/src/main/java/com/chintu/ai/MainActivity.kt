@@ -51,16 +51,17 @@ class MainActivity : ComponentActivity() {
         val app = application as ChintuApplication
         ttsManager = TextToSpeechManager(this)
         val provider = GeminiProvider(app.secureStorage)
-        conductor = AutonomousConductor(provider, app.memoryManager, app.toolRegistry)
+        conductor = AutonomousConductor(provider, app.memoryManager, app.toolRegistry, app.selfDevelopmentManager)
 
         setContent {
             ChintuTheme {
                 var appMode by remember { mutableStateOf(AppMode.ONLINE) }
                 var agentState by remember { mutableStateOf<AgentState>(AgentState.Ready) }
-                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ તૈયાર છે. હું તમારી શું મદદ કરી શકું?")) }
+                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ અને સેલ્ફ-ડેવલપમેન્ટ એન્જિન તૈયાર છે.")) }
                 var textInput by remember { mutableStateOf("") }
                 var showKeyDialog by remember { mutableStateOf(false) }
                 var apiKeyInput by remember { mutableStateOf(app.secureStorage.getString("GEMINI_API_KEY") ?: "") }
+                var gitHubTokenInput by remember { mutableStateOf(app.secureStorage.getString("GITHUB_PAT_TOKEN") ?: "") }
 
                 LaunchedEffect(Unit) {
                     speechManager = SpeechRecognizerManager(
@@ -120,7 +121,7 @@ class MainActivity : ComponentActivity() {
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 IconButton(onClick = { showKeyDialog = true }) {
-                                    Icon(Icons.Default.Settings, contentDescription = "API Keys", tint = Color.White)
+                                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
                                 }
                             }
                         }
@@ -171,7 +172,6 @@ class MainActivity : ComponentActivity() {
                                     ) == PackageManager.PERMISSION_GRANTED
                                 ) {
                                     agentState = AgentState.Listening
-                                    // Default to Gujarati/Indian English Locale
                                     speechManager.startListening(Locale("gu", "IN"))
                                 } else {
                                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -202,13 +202,20 @@ class MainActivity : ComponentActivity() {
                 if (showKeyDialog) {
                     AlertDialog(
                         onDismissRequest = { showKeyDialog = false },
-                        title = { Text("Configure API Keys") },
+                        title = { Text("AI & GitHub Configuration") },
                         text = {
                             Column {
-                                Text("Enter Google Gemini API Key:", fontSize = 12.sp)
+                                Text("Gemini API Key:", fontSize = 12.sp)
                                 OutlinedTextField(
                                     value = apiKeyInput,
                                     onValueChange = { apiKeyInput = it },
+                                    singleLine = true
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("GitHub Token (PAT for Self-Upgrade):", fontSize = 12.sp)
+                                OutlinedTextField(
+                                    value = gitHubTokenInput,
+                                    onValueChange = { gitHubTokenInput = it },
                                     singleLine = true
                                 )
                             }
@@ -216,6 +223,7 @@ class MainActivity : ComponentActivity() {
                         confirmButton = {
                             Button(onClick = {
                                 app.secureStorage.saveString("GEMINI_API_KEY", apiKeyInput.trim())
+                                app.secureStorage.saveString("GITHUB_PAT_TOKEN", gitHubTokenInput.trim())
                                 showKeyDialog = false
                             }) {
                                 Text("Save")
