@@ -33,6 +33,7 @@ import com.chintu.ai.ui.theme.ChintuTheme
 import com.chintu.ai.voice.SpeechRecognizerManager
 import com.chintu.ai.voice.TextToSpeechManager
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -56,7 +57,7 @@ class MainActivity : ComponentActivity() {
             ChintuTheme {
                 var appMode by remember { mutableStateOf(AppMode.ONLINE) }
                 var agentState by remember { mutableStateOf<AgentState>(AgentState.Ready) }
-                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ ઓનલાઇન છે. કહો, શું આદેશ છે?")) }
+                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ તૈયાર છે. હું તમારી શું મદદ કરી શકું?")) }
                 var textInput by remember { mutableStateOf("") }
                 var showKeyDialog by remember { mutableStateOf(false) }
                 var apiKeyInput by remember { mutableStateOf(app.secureStorage.getString("GEMINI_API_KEY") ?: "") }
@@ -170,7 +171,8 @@ class MainActivity : ComponentActivity() {
                                     ) == PackageManager.PERMISSION_GRANTED
                                 ) {
                                     agentState = AgentState.Listening
-                                    speechManager.startListening()
+                                    // Default to Gujarati/Indian English Locale
+                                    speechManager.startListening(Locale("gu", "IN"))
                                 } else {
                                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
