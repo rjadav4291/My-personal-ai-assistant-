@@ -26,11 +26,11 @@ class GeminiProvider(
 
     override suspend fun execute(request: AiRequest): Result<AiResponse> {
         val apiKey = secureStorage.getString("GEMINI_API_KEY")
-            ?: return Result.failure(IllegalStateException("GEMINI_API_KEY is not configured."))
+            ?: return Result.failure(IllegalStateException("GEMINI_API_KEY configure nathi. Settings ma jaaine key add karo."))
 
         return try {
             val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
-            
+
             val contentsJson = buildJsonArray {
                 request.messages.forEach { msg ->
                     addJsonObject {
@@ -61,7 +61,7 @@ class GeminiProvider(
                 val text = root["candidates"]?.jsonArray?.getOrNull(0)?.jsonObject
                     ?.get("content")?.jsonObject
                     ?.get("parts")?.jsonArray?.getOrNull(0)?.jsonObject
-                    ?.get("text")?.jsonPrimitive?.content ?: "No response received."
+                    ?.get("text")?.jsonPrimitive?.content ?: "Koi response malyo nathi."
 
                 Result.success(AiResponse(text = text, provider = name, isSuccess = true))
             } else {
