@@ -8,8 +8,10 @@ import com.chintu.ai.core.security.SecureStorage
 import com.chintu.ai.development.GitHubService
 import com.chintu.ai.development.SelfDevelopmentManager
 import com.chintu.ai.memory.MemoryManager
+import com.chintu.ai.privacy.PrivacyCenter
 import com.chintu.ai.skills.SkillManager
 import com.chintu.ai.tools.AndroidSystemTools
+import com.chintu.ai.tools.ProductivityTools
 import com.chintu.ai.tools.ToolRegistry
 import com.chintu.ai.vision.VisionEngine
 import com.chintu.ai.web.WebResearchTool
@@ -34,6 +36,8 @@ class ChintuApplication : Application() {
         private set
     lateinit var multiAgentOrchestrator: MultiAgentOrchestrator
         private set
+    lateinit var privacyCenter: PrivacyCenter
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -44,10 +48,15 @@ class ChintuApplication : Application() {
         toolRegistry = ToolRegistry()
         visionEngine = VisionEngine(applicationContext, secureStorage)
         automationManager = AutomationManager(applicationContext)
+        privacyCenter = PrivacyCenter(secureStorage, memoryManager)
 
         val systemTools = AndroidSystemTools(applicationContext)
+        val productivityTools = ProductivityTools(applicationContext)
+
         toolRegistry.register(systemTools.getBatteryTool())
         toolRegistry.register(systemTools.getLaunchAppTool())
+        toolRegistry.register(productivityTools.getMapsNavigationTool())
+        toolRegistry.register(productivityTools.getYouTubeSearchTool())
         toolRegistry.register(WebResearchTool())
 
         gitHubService = GitHubService(secureStorage)
