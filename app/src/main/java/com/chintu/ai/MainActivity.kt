@@ -51,7 +51,13 @@ class MainActivity : ComponentActivity() {
         val app = application as ChintuApplication
         ttsManager = TextToSpeechManager(this)
         val provider = GeminiProvider(app.secureStorage)
-        conductor = AutonomousConductor(provider, app.memoryManager, app.toolRegistry, app.selfDevelopmentManager)
+        conductor = AutonomousConductor(
+            provider = provider,
+            memory = app.memoryManager,
+            tools = app.toolRegistry,
+            selfDevManager = app.selfDevelopmentManager,
+            skillManager = app.skillManager
+        )
 
         setContent {
             ChintuTheme {
