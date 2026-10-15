@@ -25,18 +25,21 @@ class GeminiProvider(
     }
 
     override suspend fun execute(request: AiRequest): Result<AiResponse> {
-        val apiKey = secureStorage.getString("GEMINI_API_KEY")
-            ?: return Result.failure(IllegalStateException("GEMINI_API_KEY configure nathi. Settings ma jaaine key add karo."))
+        val apiKey = secureStorage.getString("GEMINI_API_KEY")?.trim()
+            ?: return Result.failure(IllegalStateException("GEMINI_API_KEY સેટ કરેલ નથી. સેટિંગ્સમાં જઈને કી ઉમેરો."))
 
         return try {
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
+            // Updated Official Gemini v1beta Endpoint
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey"
 
             val contentsJson = buildJsonArray {
                 request.messages.forEach { msg ->
                     addJsonObject {
                         put("role", if (msg.role == MessageRole.USER) "user" else "model")
-                        putJsonObject("parts") {
-                            put("text", msg.content)
+                        putJsonArray("parts") {
+                            addJsonObject {
+                                put("text", msg.content)
+                            }
                         }
                     }
                 }
@@ -44,9 +47,13 @@ class GeminiProvider(
 
             val payload = buildJsonObject {
                 put("contents", contentsJson)
-                putJsonObject("systemInstruction") {
-                    putJsonObject("parts") {
-                        put("text", request.systemInstruction)
+                if (request.systemInstruction.isNotBlank()) {
+                    putJsonObject("systemInstruction") {
+                        putJsonArray("parts") {
+                            addJsonObject {
+                                put("text", request.systemInstruction)
+                            }
+                        }
                     }
                 }
             }
@@ -61,11 +68,11 @@ class GeminiProvider(
                 val text = root["candidates"]?.jsonArray?.getOrNull(0)?.jsonObject
                     ?.get("content")?.jsonObject
                     ?.get("parts")?.jsonArray?.getOrNull(0)?.jsonObject
-                    ?.get("text")?.jsonPrimitive?.content ?: "Koi response malyo nathi."
+                    ?.get("text")?.jsonPrimitive?.content ?: "કોઈ જવાબ મળ્યો નથી."
 
                 Result.success(AiResponse(text = text, provider = name, isSuccess = true))
             } else {
-                Result.failure(Exception("Gemini HTTP Error: ${httpResponse.status.value}"))
+                Result.failure(Exception("Gemini HTTP Error: ${httpResponse.status.value} - ${httpResponse.bodyAsText()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
