@@ -1,7 +1,9 @@
 package com.chintu.ai
 
 import android.app.Application
+import com.chintu.ai.agent.MultiAgentOrchestrator
 import com.chintu.ai.ai.provider.GeminiProvider
+import com.chintu.ai.automation.AutomationManager
 import com.chintu.ai.core.security.SecureStorage
 import com.chintu.ai.development.GitHubService
 import com.chintu.ai.development.SelfDevelopmentManager
@@ -28,6 +30,10 @@ class ChintuApplication : Application() {
         private set
     lateinit var visionEngine: VisionEngine
         private set
+    lateinit var automationManager: AutomationManager
+        private set
+    lateinit var multiAgentOrchestrator: MultiAgentOrchestrator
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -37,6 +43,7 @@ class ChintuApplication : Application() {
         skillManager = SkillManager(applicationContext)
         toolRegistry = ToolRegistry()
         visionEngine = VisionEngine(applicationContext, secureStorage)
+        automationManager = AutomationManager(applicationContext)
 
         val systemTools = AndroidSystemTools(applicationContext)
         toolRegistry.register(systemTools.getBatteryTool())
@@ -46,6 +53,7 @@ class ChintuApplication : Application() {
         gitHubService = GitHubService(secureStorage)
         val aiProvider = GeminiProvider(secureStorage)
         selfDevelopmentManager = SelfDevelopmentManager(gitHubService, aiProvider)
+        multiAgentOrchestrator = MultiAgentOrchestrator(aiProvider)
     }
 
     companion object {
