@@ -9,9 +9,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
@@ -128,7 +130,6 @@ class MainActivity : ComponentActivity() {
                             .fillMaxSize()
                             .background(Color(0xFF0A0E14))
                     ) {
-                        // Left Sidebar - Upload controls
                         Column(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -155,7 +156,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            // Dynamic Visual sound wave/Indicator
                             Box(
                                 modifier = Modifier
                                     .size(50.dp)
@@ -167,14 +167,12 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Middle Section - Main Conversation & HUD Orb
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
                                 .padding(12.dp)
                         ) {
-                            // Top Bar inside main panel
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -207,7 +205,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            // Panoramic layout with centered AI Orb
                             Box(
                                 modifier = Modifier
                                     .weight(0.45f)
@@ -217,7 +214,6 @@ class MainActivity : ComponentActivity() {
                                 FuturisticOrb(state = agentState)
                             }
 
-                            // Cinematic Transparent Chat Screen
                             LazyColumn(
                                 modifier = Modifier
                                     .weight(0.4f)
@@ -237,7 +233,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            // Active Search/Action Input Bar
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -292,7 +287,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Right Sidebar - Active Agents
                         AgentPanel()
                     }
                 }
