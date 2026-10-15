@@ -66,13 +66,12 @@ class MainActivity : ComponentActivity() {
             ChintuTheme {
                 var appMode by remember { mutableStateOf(AppMode.ONLINE) }
                 var agentState by remember { mutableStateOf<AgentState>(AgentState.Ready) }
-                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ, વેબ રિસર્ચ અને વિઝન એન્જિન તૈયાર છે.")) }
+                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ, પ્રોડક્ટિવિટી અને પ્રાઈવસી કંટ્રોલ સક્રિય છે.")) }
                 var textInput by remember { mutableStateOf("") }
                 var showKeyDialog by remember { mutableStateOf(false) }
                 var apiKeyInput by remember { mutableStateOf(app.secureStorage.getString("GEMINI_API_KEY") ?: "") }
                 var gitHubTokenInput by remember { mutableStateOf(app.secureStorage.getString("GITHUB_PAT_TOKEN") ?: "") }
 
-                // Photo picker for Vision Engine
                 val imagePickerLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri: Uri? ->
@@ -238,7 +237,7 @@ class MainActivity : ComponentActivity() {
                 if (showKeyDialog) {
                     AlertDialog(
                         onDismissRequest = { showKeyDialog = false },
-                        title = { Text("AI & GitHub Configuration") },
+                        title = { Text("Settings & Privacy Center") },
                         text = {
                             Column {
                                 Text("Gemini API Key:", fontSize = 12.sp)
@@ -247,13 +246,33 @@ class MainActivity : ComponentActivity() {
                                     onValueChange = { apiKeyInput = it },
                                     singleLine = true
                                 )
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text("GitHub Token (PAT for Self-Upgrade):", fontSize = 12.sp)
                                 OutlinedTextField(
                                     value = gitHubTokenInput,
                                     onValueChange = { gitHubTokenInput = it },
                                     singleLine = true
                                 )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Divider()
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Privacy Audit:", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                app.privacyCenter.getPrivacyAuditSummary().forEach { (k, v) ->
+                                    Text("$k: $v", fontSize = 11.sp, color = Color.Gray)
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        app.privacyCenter.wipeAllUserData()
+                                        apiKeyInput = ""
+                                        gitHubTokenInput = ""
+                                        chatLog = listOf("CHINTU: તમામ ડેટા સુરક્ષિત રીતે ડિલીટ કરી દેવાયો છે.")
+                                        showKeyDialog = false
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF1744))
+                                ) {
+                                    Text("Wipe All Local Data")
+                                }
                             }
                         },
                         confirmButton = {
@@ -267,7 +286,7 @@ class MainActivity : ComponentActivity() {
                         },
                         dismissButton = {
                             TextButton(onClick = { showKeyDialog = false }) {
-                                Text("Cancel")
+                                Text("Close")
                             }
                         }
                     )
