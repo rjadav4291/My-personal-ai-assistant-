@@ -6,6 +6,7 @@ import com.chintu.ai.core.security.SecureStorage
 import com.chintu.ai.development.GitHubService
 import com.chintu.ai.development.SelfDevelopmentManager
 import com.chintu.ai.memory.MemoryManager
+import com.chintu.ai.skills.SkillManager
 import com.chintu.ai.tools.AndroidSystemTools
 import com.chintu.ai.tools.ToolRegistry
 
@@ -14,6 +15,8 @@ class ChintuApplication : Application() {
     lateinit var secureStorage: SecureStorage
         private set
     lateinit var memoryManager: MemoryManager
+        private set
+    lateinit var skillManager: SkillManager
         private set
     lateinit var toolRegistry: ToolRegistry
         private set
@@ -27,6 +30,7 @@ class ChintuApplication : Application() {
         instance = this
         secureStorage = SecureStorage(applicationContext)
         memoryManager = MemoryManager(applicationContext)
+        skillManager = SkillManager(applicationContext)
         toolRegistry = ToolRegistry()
 
         val systemTools = AndroidSystemTools(applicationContext)
