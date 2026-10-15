@@ -2,8 +2,10 @@ package com.chintu.ai
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
@@ -63,11 +66,33 @@ class MainActivity : ComponentActivity() {
             ChintuTheme {
                 var appMode by remember { mutableStateOf(AppMode.ONLINE) }
                 var agentState by remember { mutableStateOf<AgentState>(AgentState.Ready) }
-                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ અને સેલ્ફ-ડેવલપમેન્ટ એન્જિન તૈયાર છે.")) }
+                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ, વેબ રિસર્ચ અને વિઝન એન્જિન તૈયાર છે.")) }
                 var textInput by remember { mutableStateOf("") }
                 var showKeyDialog by remember { mutableStateOf(false) }
                 var apiKeyInput by remember { mutableStateOf(app.secureStorage.getString("GEMINI_API_KEY") ?: "") }
                 var gitHubTokenInput by remember { mutableStateOf(app.secureStorage.getString("GITHUB_PAT_TOKEN") ?: "") }
+
+                // Photo picker for Vision Engine
+                val imagePickerLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri: Uri? ->
+                    uri?.let {
+                        agentState = AgentState.Thinking("ફોટો એનાલાઈઝ કરી રહ્યો છું...")
+                        chatLog = chatLog + "User: [ઇમેજ અપલોડ કરી]"
+                        lifecycleScope.launch {
+                            val visionResult = app.visionEngine.analyzeImage(it)
+                            val reply = visionResult.fold(
+                                onSuccess = { text -> text },
+                                onFailure = { e -> "વિઝન પ્રોસેસિંગ નિષ્ફળ: ${e.localizedMessage}" }
+                            )
+                            chatLog = chatLog + "CHINTU: $reply"
+                            agentState = AgentState.Speaking(reply)
+                            ttsManager.speak(reply) {
+                                agentState = AgentState.Ready
+                            }
+                        }
+                    }
+                }
 
                 LaunchedEffect(Unit) {
                     speechManager = SpeechRecognizerManager(
@@ -164,13 +189,18 @@ class MainActivity : ComponentActivity() {
                                 .padding(top = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(onClick = {
+                                imagePickerLauncher.launch("image/*")
+                            }) {
+                                Icon(Icons.Default.Image, contentDescription = "Attach Image", tint = MaterialTheme.colorScheme.primary)
+                            }
                             OutlinedTextField(
                                 value = textInput,
                                 onValueChange = { textInput = it },
                                 modifier = Modifier.weight(1f),
                                 placeholder = { Text("આદેશ આપો...") }
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             IconButton(onClick = {
                                 if (ContextCompat.checkSelfPermission(
                                         this@MainActivity,
