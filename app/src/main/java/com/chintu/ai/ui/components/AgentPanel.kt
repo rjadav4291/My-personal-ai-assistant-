@@ -1,6 +1,7 @@
 package com.chintu.ai.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -48,7 +49,6 @@ fun AgentPanel(modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Glowing placeholder for avatar holograms
                     Box(
                         modifier = Modifier
                             .size(36.dp)
