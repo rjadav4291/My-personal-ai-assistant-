@@ -16,4 +16,3 @@ sealed interface AgentState {
     data class Error(val message: String) : AgentState
     data object Offline : AgentState
 }
-app/src/main/java/com/chintu/ai/core/common/AppMode.kt
