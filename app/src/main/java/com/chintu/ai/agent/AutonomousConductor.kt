@@ -9,6 +9,7 @@ import com.chintu.ai.core.common.AppMode
 import com.chintu.ai.development.DevStatus
 import com.chintu.ai.development.SelfDevelopmentManager
 import com.chintu.ai.memory.MemoryManager
+import com.chintu.ai.skills.SkillManager
 import com.chintu.ai.tools.ToolRegistry
 import com.chintu.ai.tools.ToolResult
 
@@ -16,7 +17,8 @@ class AutonomousConductor(
     private val provider: AiProvider,
     private val memory: MemoryManager,
     private val tools: ToolRegistry,
-    private val selfDevManager: SelfDevelopmentManager
+    private val selfDevManager: SelfDevelopmentManager,
+    private val skillManager: SkillManager
 ) {
     suspend fun processQuery(
         userInput: String,
@@ -30,7 +32,7 @@ class AutonomousConductor(
 
         val trimmed = userInput.trim()
 
-        // 1. Check for Self-Development / Feature Requests
+        // 1. Self-Development Check
         val lower = trimmed.lowercase()
         if (lower.startsWith("add feature") || lower.startsWith("નવું ફીચર") || lower.startsWith("બનાવ") || lower.contains("update code")) {
             onStateUpdate(AgentState.Thinking("સેલ્ફ-ડેવલપમેન્ટ એન્જિન સક્રિય કરી રહ્યો છું..."))
@@ -84,7 +86,16 @@ class AutonomousConductor(
             }
         }
 
-        // 5. Regular AI Inference with Memory Context
+        // 5. Match Dynamic Skill
+        val matchedSkill = skillManager.matchSkillForQuery(trimmed)
+        val systemInstruction = if (matchedSkill != null) {
+            onStateUpdate(AgentState.Thinking("સ્કિલ લાગુ કરી રહ્યો છું: ${matchedSkill.name}"))
+            "You are CHINTU AI. Active Skill: ${matchedSkill.name}. ${matchedSkill.systemPromptModifier} Respond concisely and professionally in Gujarati/English as appropriate."
+        } else {
+            "You are CHINTU: an intelligent, calm, truthful Android AI assistant. Respond helpfully in Gujarati, Hindi, English, or Hinglish as requested."
+        }
+
+        // 6. Inference with Memory Context
         val savedMemories = memory.getAllMemories().joinToString("\n") { "- ${it.value}" }
         val promptWithContext = if (savedMemories.isNotEmpty()) {
             """
@@ -99,7 +110,8 @@ class AutonomousConductor(
         }
 
         val request = AiRequest(
-            messages = listOf(AiMessage(role = MessageRole.USER, content = promptWithContext))
+            messages = listOf(AiMessage(role = MessageRole.USER, content = promptWithContext)),
+            systemInstruction = systemInstruction
         )
 
         val result = provider.execute(request)
