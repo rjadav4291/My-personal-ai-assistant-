@@ -19,18 +19,30 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Setup Gradle
+      - name: Setup Gradle 8.5 (Strict Compatible Version)
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        id: gradle_build
+        run: |
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build_log.txt
+
+      - name: Show Detailed Error in Job Summary (If Failed)
+        if: failure()
+        run: |
+          echo "### ❌ Build Failed! Detailed Error Summary:" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          grep -A 25 -B 5 "FAILURE: Build failed" build_log.txt || tail -n 60 build_log.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Verify APK Exists
         run: |
           if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
             echo "SUCCESS: APK file verified."
+            echo "### ✅ Build Succeeded! APK generated." >> $GITHUB_STEP_SUMMARY
           else
             echo "ERROR: APK generation failed!"
             exit 1
