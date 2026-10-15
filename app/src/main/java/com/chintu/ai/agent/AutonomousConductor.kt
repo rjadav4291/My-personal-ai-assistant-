@@ -6,6 +6,8 @@ import com.chintu.ai.ai.model.MessageRole
 import com.chintu.ai.ai.provider.AiProvider
 import com.chintu.ai.core.common.AgentState
 import com.chintu.ai.core.common.AppMode
+import com.chintu.ai.development.DevStatus
+import com.chintu.ai.development.SelfDevelopmentManager
 import com.chintu.ai.memory.MemoryManager
 import com.chintu.ai.tools.ToolRegistry
 import com.chintu.ai.tools.ToolResult
@@ -13,7 +15,8 @@ import com.chintu.ai.tools.ToolResult
 class AutonomousConductor(
     private val provider: AiProvider,
     private val memory: MemoryManager,
-    private val tools: ToolRegistry
+    private val tools: ToolRegistry,
+    private val selfDevManager: SelfDevelopmentManager
 ) {
     suspend fun processQuery(
         userInput: String,
@@ -25,11 +28,26 @@ class AutonomousConductor(
             return "ઓફલાઇન મોડ ચાલુ છે. નેટવર્ક કનેક્શન વગર વિનંતી પ્રોસેસ કરી શકાશે નહીં."
         }
 
-        onStateUpdate(AgentState.Thinking("વિચારણા ચાલુ છે..."))
-
         val trimmed = userInput.trim()
 
-        // 1. Memory Store Intent Check ("યાદ રાખ કે...", "Remember that...")
+        // 1. Check for Self-Development / Feature Requests
+        val lower = trimmed.lowercase()
+        if (lower.startsWith("add feature") || lower.startsWith("નવું ફીચર") || lower.startsWith("બનાવ") || lower.contains("update code")) {
+            onStateUpdate(AgentState.Thinking("સેલ્ફ-ડેવલપમેન્ટ એન્જિન સક્રિય કરી રહ્યો છું..."))
+            return selfDevManager.handleUserDevelopmentRequest(trimmed) { status ->
+                when (status) {
+                    is DevStatus.Planning -> onStateUpdate(AgentState.Thinking("પ્લાનિંગ: ${status.task}"))
+                    is DevStatus.PushingToGitHub -> onStateUpdate(AgentState.Executing("GitHub Push: ${status.branch}"))
+                    is DevStatus.BuildTriggered -> onStateUpdate(AgentState.Ready)
+                    is DevStatus.Failed -> onStateUpdate(AgentState.Error(status.error))
+                    DevStatus.Idle -> onStateUpdate(AgentState.Ready)
+                }
+            }
+        }
+
+        onStateUpdate(AgentState.Thinking("વિચારણા ચાલુ છે..."))
+
+        // 2. Memory Store Intent
         if (trimmed.startsWith("યાદ રાખ", ignoreCase = true) || trimmed.startsWith("remember", ignoreCase = true)) {
             val contentToRemember = trimmed
                 .removePrefix("યાદ રાખ")
@@ -46,15 +64,14 @@ class AutonomousConductor(
             }
         }
 
-        // 2. Clear Memory Intent Check
+        // 3. Clear Memory Intent
         if (trimmed.contains("બધું ભૂલી જા", ignoreCase = true) || trimmed.contains("clear memory", ignoreCase = true)) {
             memory.clearMemories()
             onStateUpdate(AgentState.Ready)
             return "બધી સાચવેલી મેમરી ડિલીટ કરી દેવામાં આવી છે."
         }
 
-        // 3. System Tools Intent Check
-        val lower = trimmed.lowercase()
+        // 4. System Tools
         if (lower.contains("battery") || lower.contains("બેટરી")) {
             onStateUpdate(AgentState.Executing("get_battery_status"))
             val batteryTool = tools.getTool("get_battery_status")
@@ -67,7 +84,7 @@ class AutonomousConductor(
             }
         }
 
-        // 4. Autonomous AI Inference with Context Injection
+        // 5. Regular AI Inference with Memory Context
         val savedMemories = memory.getAllMemories().joinToString("\n") { "- ${it.value}" }
         val promptWithContext = if (savedMemories.isNotEmpty()) {
             """
