@@ -25,28 +25,64 @@ class AutonomousConductor(
             return "ઓફલાઇન મોડ ચાલુ છે. નેટવર્ક કનેક્શન વગર વિનંતી પ્રોસેસ કરી શકાશે નહીં."
         }
 
-        onStateUpdate(AgentState.Thinking("પ્રોસેસિંગ..."))
+        onStateUpdate(AgentState.Thinking("વિચારણા ચાલુ છે..."))
 
-        val lower = userInput.lowercase()
+        val trimmed = userInput.trim()
+
+        // 1. Memory Store Intent Check ("યાદ રાખ કે...", "Remember that...")
+        if (trimmed.startsWith("યાદ રાખ", ignoreCase = true) || trimmed.startsWith("remember", ignoreCase = true)) {
+            val contentToRemember = trimmed
+                .removePrefix("યાદ રાખ")
+                .removePrefix("remember")
+                .removePrefix("કે")
+                .removePrefix("that")
+                .trim()
+
+            if (contentToRemember.isNotEmpty()) {
+                val key = "info_${System.currentTimeMillis()}"
+                memory.saveMemory(key, contentToRemember)
+                onStateUpdate(AgentState.Ready)
+                return "મેં યાદ રાખી લીધું છે: $contentToRemember"
+            }
+        }
+
+        // 2. Clear Memory Intent Check
+        if (trimmed.contains("બધું ભૂલી જા", ignoreCase = true) || trimmed.contains("clear memory", ignoreCase = true)) {
+            memory.clearMemories()
+            onStateUpdate(AgentState.Ready)
+            return "બધી સાચવેલી મેમરી ડિલીટ કરી દેવામાં આવી છે."
+        }
+
+        // 3. System Tools Intent Check
+        val lower = trimmed.lowercase()
         if (lower.contains("battery") || lower.contains("બેટરી")) {
             onStateUpdate(AgentState.Executing("get_battery_status"))
             val batteryTool = tools.getTool("get_battery_status")
-            return when (val res = batteryTool?.execute(emptyMap())) {
-                is ToolResult.Success -> res.message
-                is ToolResult.Failure -> "ભૂલ: ${res.cause}"
+            val toolRes = batteryTool?.execute(emptyMap())
+            onStateUpdate(AgentState.Ready)
+            return when (toolRes) {
+                is ToolResult.Success -> toolRes.message
+                is ToolResult.Failure -> "ભૂલ: ${toolRes.cause}"
                 null -> "Tool મળ્યું નથી."
             }
         }
 
-        val savedMemories = memory.getAllMemories().joinToString("\n") { "- ${it.key}: ${it.value}" }
-        val prompt = if (savedMemories.isNotEmpty()) {
-            "User persistent memories:\n$savedMemories\n\nUser Question: $userInput"
+        // 4. Autonomous AI Inference with Context Injection
+        val savedMemories = memory.getAllMemories().joinToString("\n") { "- ${it.value}" }
+        val promptWithContext = if (savedMemories.isNotEmpty()) {
+            """
+            યુઝર વિશે સાચવેલી વિગતો (Persistent Memory):
+            $savedMemories
+
+            યુઝરનો સવાલ/આદેશ:
+            $trimmed
+            """.trimIndent()
         } else {
-            userInput
+            trimmed
         }
 
         val request = AiRequest(
-            messages = listOf(AiMessage(role = MessageRole.USER, content = prompt))
+            messages = listOf(AiMessage(role = MessageRole.USER, content = promptWithContext))
         )
 
         val result = provider.execute(request)
