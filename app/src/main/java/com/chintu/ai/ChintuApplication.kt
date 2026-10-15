@@ -9,6 +9,8 @@ import com.chintu.ai.memory.MemoryManager
 import com.chintu.ai.skills.SkillManager
 import com.chintu.ai.tools.AndroidSystemTools
 import com.chintu.ai.tools.ToolRegistry
+import com.chintu.ai.vision.VisionEngine
+import com.chintu.ai.web.WebResearchTool
 
 class ChintuApplication : Application() {
 
@@ -24,6 +26,8 @@ class ChintuApplication : Application() {
         private set
     lateinit var selfDevelopmentManager: SelfDevelopmentManager
         private set
+    lateinit var visionEngine: VisionEngine
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -32,10 +36,12 @@ class ChintuApplication : Application() {
         memoryManager = MemoryManager(applicationContext)
         skillManager = SkillManager(applicationContext)
         toolRegistry = ToolRegistry()
+        visionEngine = VisionEngine(applicationContext, secureStorage)
 
         val systemTools = AndroidSystemTools(applicationContext)
         toolRegistry.register(systemTools.getBatteryTool())
         toolRegistry.register(systemTools.getLaunchAppTool())
+        toolRegistry.register(WebResearchTool())
 
         gitHubService = GitHubService(secureStorage)
         val aiProvider = GeminiProvider(secureStorage)
