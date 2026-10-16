@@ -7,18 +7,19 @@ import kotlinx.serialization.json.Json
 
 class MemoryManager(
     private val context: Context,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage? = null
 ) {
-    // Persistent Conversation Storage (Chat History Save & Load)
+    private val memoryMap = mutableMapOf<String, String>()
+
     fun saveConversation(messages: List<String>) {
         try {
             val jsonString = Json.encodeToString(messages)
-            secureStorage.saveString("CHAT_HISTORY", jsonString)
+            secureStorage?.saveString("CHAT_HISTORY", jsonString)
         } catch (_: Exception) {}
     }
 
     fun loadConversation(): List<String> {
-        val jsonString = secureStorage.getString("CHAT_HISTORY") ?: return emptyList()
+        val jsonString = secureStorage?.getString("CHAT_HISTORY") ?: return emptyList()
         return try {
             Json.decodeFromString(jsonString)
         } catch (_: Exception) {
@@ -26,16 +27,25 @@ class MemoryManager(
         }
     }
 
-    // Agent Short-term & Context Memory
     fun remember(key: String, value: String) {
-        secureStorage.saveString("MEM_$key", value)
+        memoryMap[key] = value
+        secureStorage?.saveString("MEM_$key", value)
     }
 
     fun recall(key: String): String? {
-        return secureStorage.getString("MEM_$key")
+        return memoryMap[key] ?: secureStorage?.getString("MEM_$key")
+    }
+
+    fun getAllMemories(): Map<String, String> {
+        return memoryMap.toMap()
+    }
+
+    fun clearMemories() {
+        memoryMap.clear()
+        secureStorage?.saveString("CHAT_HISTORY", "")
     }
 
     fun clearMemory() {
-        secureStorage.saveString("CHAT_HISTORY", "")
+        clearMemories()
     }
 }
