@@ -10,4 +10,6 @@ class ToolRegistry {
     fun getTool(name: String): ToolContract? = tools[name]
 
     fun getAllTools(): List<ToolContract> = tools.values.toList()
+
+    fun getShuffledTools(): List<ToolContract> = tools.values.toList().shuffled()
 }
