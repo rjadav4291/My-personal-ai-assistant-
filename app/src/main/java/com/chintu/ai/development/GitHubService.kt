@@ -22,7 +22,7 @@ class GitHubService(
 
     suspend fun getBranchSha(branch: String = "main"): Result<String> {
         val token = getToken()
-        if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN સેટ કરેલ નથી."))
+        if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN set karelo nathi."))
 
         return try {
             val response = client.get("https://api.github.com/repos/$repoOwner/$repoName/git/ref/heads/$branch") {
@@ -32,7 +32,7 @@ class GitHubService(
             if (response.status.isSuccess()) {
                 val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
                 val sha = json["object"]?.jsonObject?.get("sha")?.jsonPrimitive?.content
-                    ?: return Result.failure(Exception("SHA મળ્યો નથી."))
+                    ?: return Result.failure(Exception("SHA malyo nathi."))
                 Result.success(sha)
             } else {
                 Result.failure(Exception("Get Branch Error: ${response.status.value}"))
@@ -42,7 +42,7 @@ class GitHubService(
         }
     }
 
-    suspend fun getFileSha(path: String, branch: String = "main"): String? {
+    suspend fun getFileContent(path: String, branch: String = "main"): Pair<String, String>? {
         val token = getToken()
         if (token.isBlank()) return null
         return try {
@@ -52,16 +52,19 @@ class GitHubService(
             }
             if (response.status.isSuccess()) {
                 val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-                json["sha"]?.jsonPrimitive?.content
+                val sha = json["sha"]?.jsonPrimitive?.content ?: ""
+                val base64Content = json["content"]?.jsonPrimitive?.content?.replace("\n", "") ?: ""
+                val decoded = String(Base64.decode(base64Content, Base64.DEFAULT), Charsets.UTF_8)
+                Pair(decoded, sha)
             } else null
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
 
     suspend fun createBranch(newBranch: String, baseSha: String): Result<Boolean> {
         val token = getToken()
-        if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN સેટ કરેલ નથી."))
+        if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN set karelo nathi."))
 
         return try {
             val payload = buildJsonObject {
@@ -77,7 +80,7 @@ class GitHubService(
             if (response.status.isSuccess() || response.status.value == 201) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("Create Branch Error: ${response.status.value} - ${response.bodyAsText()}"))
+                Result.failure(Exception("Create Branch Error: ${response.status.value}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -91,17 +94,17 @@ class GitHubService(
         branch: String
     ): Result<Boolean> {
         val token = getToken()
-        if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN સેટ કરેલ નથી."))
+        if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN set karelo nathi."))
 
         return try {
-            val existingSha = getFileSha(path, branch)
+            val existing = getFileContent(path, branch)
             val encodedContent = Base64.encodeToString(content.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
             val payload = buildJsonObject {
                 put("message", commitMessage)
                 put("content", encodedContent)
                 put("branch", branch)
-                if (existingSha != null) {
-                    put("sha", existingSha)
+                if (existing != null) {
+                    put("sha", existing.second)
                 }
             }
             val response = client.put("https://api.github.com/repos/$repoOwner/$repoName/contents/$path") {
@@ -113,7 +116,7 @@ class GitHubService(
             if (response.status.isSuccess() || response.status.value == 201) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("Commit File Error: ${response.status.value} - ${response.bodyAsText()}"))
+                Result.failure(Exception("Update File Error: ${response.status.value} - ${response.bodyAsText()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
