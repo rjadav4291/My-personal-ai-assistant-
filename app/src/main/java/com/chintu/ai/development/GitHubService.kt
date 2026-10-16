@@ -42,6 +42,23 @@ class GitHubService(
         }
     }
 
+    suspend fun getFileSha(path: String, branch: String = "main"): String? {
+        val token = getToken()
+        if (token.isBlank()) return null
+        return try {
+            val response = client.get("https://api.github.com/repos/$repoOwner/$repoName/contents/$path?ref=$branch") {
+                header("Authorization", "Bearer $token")
+                header("Accept", "application/vnd.github.v3+json")
+            }
+            if (response.status.isSuccess()) {
+                val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+                json["sha"]?.jsonPrimitive?.content
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun createBranch(newBranch: String, baseSha: String): Result<Boolean> {
         val token = getToken()
         if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN સેટ કરેલ નથી."))
@@ -77,11 +94,15 @@ class GitHubService(
         if (token.isBlank()) return Result.failure(IllegalStateException("GITHUB_PAT_TOKEN સેટ કરેલ નથી."))
 
         return try {
+            val existingSha = getFileSha(path, branch)
             val encodedContent = Base64.encodeToString(content.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
             val payload = buildJsonObject {
                 put("message", commitMessage)
                 put("content", encodedContent)
                 put("branch", branch)
+                if (existingSha != null) {
+                    put("sha", existingSha)
+                }
             }
             val response = client.put("https://api.github.com/repos/$repoOwner/$repoName/contents/$path") {
                 header("Authorization", "Bearer $token")
