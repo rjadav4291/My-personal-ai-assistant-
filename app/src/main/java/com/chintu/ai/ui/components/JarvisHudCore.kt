@@ -57,9 +57,11 @@ fun JarvisHudCore(state: AgentState, modifier: Modifier = Modifier) {
         is AgentState.Ready -> Color(0xFF00E5FF)
         is AgentState.Listening -> Color(0xFF00FF66)
         is AgentState.Thinking -> Color(0xFFFFD600)
+        is AgentState.Executing -> Color(0xFFFF9100)
         is AgentState.Speaking -> Color(0xFFB388FF)
         is AgentState.Offline -> Color(0xFF78909C)
         is AgentState.Error -> Color(0xFFFF1744)
+        else -> Color(0xFF00E5FF)
     }
 
     Box(
