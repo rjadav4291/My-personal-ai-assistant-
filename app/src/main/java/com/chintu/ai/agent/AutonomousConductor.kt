@@ -6,12 +6,10 @@ import com.chintu.ai.ai.model.MessageRole
 import com.chintu.ai.ai.provider.AiProvider
 import com.chintu.ai.core.common.AgentState
 import com.chintu.ai.core.common.AppMode
-import com.chintu.ai.development.DevStatus
 import com.chintu.ai.development.SelfDevelopmentManager
 import com.chintu.ai.memory.MemoryManager
 import com.chintu.ai.skills.SkillManager
 import com.chintu.ai.tools.ToolRegistry
-import com.chintu.ai.tools.ToolResult
 
 class AutonomousConductor(
     private val provider: AiProvider,
@@ -20,106 +18,85 @@ class AutonomousConductor(
     private val selfDevManager: SelfDevelopmentManager,
     private val skillManager: SkillManager
 ) {
+    // છેલ્લે અપૂર્ણ રહેલા ટાસ્કને યાદ રાખવા માટેનો વેરિયેબલ
+    private var pendingFeatureRequest: String? = null
+
     suspend fun processQuery(
         userInput: String,
         mode: AppMode,
-        onStateUpdate: (AgentState) -> Unit
+        onStateChange: (AgentState) -> Unit
     ): String {
-        if (mode == AppMode.OFFLINE) {
-            onStateUpdate(AgentState.Offline)
-            return "ઓફલાઇન મોડ ચાલુ છે. નેટવર્ક કનેક્શન વગર વિનંતી પ્રોસેસ કરી શકાશે નહીં."
-        }
-
         val trimmed = userInput.trim()
 
-        // 1. Self-Development Check
-        val lower = trimmed.lowercase()
-        if (lower.startsWith("add feature") || lower.startsWith("નવું ફીચર") || lower.startsWith("બનાવ") || lower.contains("update code")) {
-            onStateUpdate(AgentState.Thinking("સેલ્ફ-ડેવલપમેન્ટ એન્જિન સક્રિય કરી રહ્યો છું..."))
-            return selfDevManager.handleUserDevelopmentRequest(trimmed) { status ->
-                when (status) {
-                    is DevStatus.Planning -> onStateUpdate(AgentState.Thinking("પ્લાનિંગ: ${status.task}"))
-                    is DevStatus.PushingToGitHub -> onStateUpdate(AgentState.Executing("GitHub Push: ${status.branch}"))
-                    is DevStatus.BuildTriggered -> onStateUpdate(AgentState.Ready)
-                    is DevStatus.Failed -> onStateUpdate(AgentState.Error(status.error))
-                    DevStatus.Idle -> onStateUpdate(AgentState.Ready)
+        // ૧. જો યુઝરે સેલ્ફ-અપગ્રેડ માટે મંજૂરી (હા / Yes) આપી હોય
+        if (pendingFeatureRequest != null && isUserConfirmation(trimmed)) {
+            val feature = pendingFeatureRequest!!
+            pendingFeatureRequest = null
+            onStateChange(AgentState.Executing)
+
+            val upgradeResult = selfDevManager.developAndDeployFeature(
+                featureDescription = feature,
+                userPrompt = "Add new capability: $feature"
+            )
+
+            return upgradeResult.fold(
+                onSuccess = { prUrl ->
+                    "મેં મારી જાતે '$feature' ફીચર તમારી GitHub રેપોઝિટરીમાં કમિટ કરી દીધું છે! 🚀\nGitHub Actions માં નવું APK બિલ્ડ થવાનું શરૂ થઈ ગયું છે. થોડી વારમાં Actions ટેબમાંથી નવું APK ડાઉનલોડ કરી શકશો.\n\nલિંક: $prUrl"
+                },
+                onFailure = { error ->
+                    "માફ કરશો, રેપોઝિટરી અપડેટ કરવામાં ખામી આવી: ${error.localizedMessage}\nકૃપા કરીને સેટિંગ્સમાં GitHub PAT Token બરાબર તપાસો."
                 }
-            }
+            )
         }
 
-        onStateUpdate(AgentState.Thinking("વિચારણા ચાલુ છે..."))
-
-        // 2. Memory Store Intent
-        if (trimmed.startsWith("યાદ રાખ", ignoreCase = true) || trimmed.startsWith("remember", ignoreCase = true)) {
-            val contentToRemember = trimmed
-                .removePrefix("યાદ રાખ")
-                .removePrefix("remember")
-                .removePrefix("કે")
-                .removePrefix("that")
-                .trim()
-
-            if (contentToRemember.isNotEmpty()) {
-                val key = "info_${System.currentTimeMillis()}"
-                memory.saveMemory(key, contentToRemember)
-                onStateUpdate(AgentState.Ready)
-                return "મેં યાદ રાખી લીધું છે: $contentToRemember"
-            }
+        // જો યુઝરે ના પાડી હોય
+        if (pendingFeatureRequest != null && isUserRejection(trimmed)) {
+            pendingFeatureRequest = null
+            return "સમજી ગયો! મેં આ ફીચર ઉમેરવાનું રદ કર્યું છે. બીજું શું કામ છે?"
         }
 
-        // 3. Clear Memory Intent
-        if (trimmed.contains("બધું ભૂલી જા", ignoreCase = true) || trimmed.contains("clear memory", ignoreCase = true)) {
-            memory.clearMemories()
-            onStateUpdate(AgentState.Ready)
-            return "બધી સાચવેલી મેમરી ડિલીટ કરી દેવામાં આવી છે."
-        }
+        // ૨. સામાન્ય ક્વેરી પ્રોસેસિંગ
+        onStateChange(AgentState.Thinking("વિચારી રહ્યો છું..."))
 
-        // 4. System Tools
-        if (lower.contains("battery") || lower.contains("બેટરી")) {
-            onStateUpdate(AgentState.Executing("get_battery_status"))
-            val batteryTool = tools.getTool("get_battery_status")
-            val toolRes = batteryTool?.execute(emptyMap())
-            onStateUpdate(AgentState.Ready)
-            return when (toolRes) {
-                is ToolResult.Success -> toolRes.message
-                is ToolResult.Failure -> "ભૂલ: ${toolRes.cause}"
-                null -> "Tool મળ્યું નથી."
-            }
-        }
+        val availableToolsPrompt = tools.getAllTools().joinToString("\n") { "- ${it.name}: ${it.description}" }
+        val systemPrompt = """
+            તમે CHINTU છો — એક સ્વાયત્ત અને શક્તિશાળી AI આસિસ્ટન્ટ.
+            તમારી પાસે હાલ આ ટૂલ્સ ઉપલબ્ધ છે:
+            $availableToolsPrompt
 
-        // 5. Match Dynamic Skill
-        val matchedSkill = skillManager.matchSkillForQuery(trimmed)
-        val systemInstruction = if (matchedSkill != null) {
-            onStateUpdate(AgentState.Thinking("સ્કિલ લાગુ કરી રહ્યો છું: ${matchedSkill.name}"))
-            "You are CHINTU AI. Active Skill: ${matchedSkill.name}. ${matchedSkill.systemPromptModifier} Respond concisely and professionally in Gujarati/English as appropriate."
-        } else {
-            "You are CHINTU: an intelligent, calm, truthful Android AI assistant. Respond helpfully in Gujarati, Hindi, English, or Hinglish as requested."
-        }
-
-        // 6. Inference with Memory Context
-        val savedMemories = memory.getAllMemories().joinToString("\n") { "- ${it.value}" }
-        val promptWithContext = if (savedMemories.isNotEmpty()) {
-            """
-            યુઝર વિશે સાચવેલી વિગતો (Persistent Memory):
-            $savedMemories
-
-            યુઝરનો સવાલ/આદેશ:
-            $trimmed
-            """.trimIndent()
-        } else {
-            trimmed
-        }
+            નિયમ:
+            જો યુઝરનું કાર્ય હાલના ટૂલ્સ કે સામાન્ય માહિતીથી ન થઈ શકે તેવું એડવાન્સ ફીચર હોય (જેમ કે નવી API, નવું સિસ્ટમ ટૂલ, સ્પેશિયલ કેલ્ક્યુલેશન), તો સ્પષ્ટ જણાવો કે આ ફીચર હાલ મારામાં નથી.
+            અને અંતે બરાબર આ ફોર્મેટમાં લખો:
+            [UNSUPPORTED_TASK: ફીચરનું ટૂંકું નામ]
+        """.trimIndent()
 
         val request = AiRequest(
-            messages = listOf(AiMessage(role = MessageRole.USER, content = promptWithContext)),
-            systemInstruction = systemInstruction
+            messages = listOf(AiMessage(role = MessageRole.USER, content = userInput)),
+            systemInstruction = systemPrompt
         )
 
-        val result = provider.execute(request)
-        onStateUpdate(AgentState.Ready)
+        val responseResult = provider.execute(request)
+        val replyText = responseResult.getOrElse { "ભૂલ આવી: ${it.localizedMessage}" }
 
-        return result.fold(
-            onSuccess = { it.text },
-            onFailure = { "ભૂલ આવી: ${it.localizedMessage}" }
-        )
+        // ૩. ટાસ્ક અનસપોર્ટેડ છે કે નહીં તે ચકાસવું
+        if (replyText.contains("[UNSUPPORTED_TASK:")) {
+            val featureName = replyText.substringAfter("[UNSUPPORTED_TASK:").substringBefore("]").trim()
+            pendingFeatureRequest = if (featureName.isNotBlank()) featureName else userInput
+
+            val cleanReply = replyText.replace(Regex("\\[UNSUPPORTED_TASK:.*?\\]"), "").trim()
+            return "$cleanReply\n\n⚠️ આ કાર્ય કરવા માટેની ક્ષમતા હાલ મારી સિસ્ટમમાં ઉપલબ્ધ નથી.\nશું હું આ ફીચરનો કોડ જાતે બનાવીને તમારી GitHub રેપોઝિટરીમાં કમિટ કરી દઉં જેથી નવું APK બની જાય? (હા / ના માં જવાબ આપો)"
+        }
+
+        return replyText
+    }
+
+    private fun isUserConfirmation(input: String): Boolean {
+        val lower = input.lowercase()
+        return lower in listOf("હા", "ha", "yes", "y", "kari de", "કરી દે", "બનાવી દે", "ok", "sure", "add it")
+    }
+
+    private fun isUserRejection(input: String): Boolean {
+        val lower = input.lowercase()
+        return lower in listOf("ના", "na", "no", "n", "reva de", "નથી કરવું", "cancel")
     }
 }
