@@ -18,6 +18,7 @@ class AutonomousConductor(
     private val selfDevManager: SelfDevelopmentManager,
     private val skillManager: SkillManager
 ) {
+    private val dynamicAgentManager = DynamicAgentManager(provider)
     private var pendingFeatureRequest: String? = null
 
     suspend fun processQuery(
@@ -30,51 +31,44 @@ class AutonomousConductor(
         if (pendingFeatureRequest != null && isUserConfirmation(trimmed)) {
             val feature = pendingFeatureRequest!!
             pendingFeatureRequest = null
-            onStateChange(AgentState.Executing("GitHub પર ફીચર કમિટ કરી રહ્યો છું..."))
+            onStateChange(AgentState.Executing("Files context samji ne repo update kari rahyo chhu..."))
 
             val upgradeResult = selfDevManager.developAndDeployFeature(
                 featureDescription = feature,
-                userPrompt = "Add new capability: $feature"
+                userPrompt = "Add and integrate: $feature"
             )
 
             return upgradeResult.fold(
                 onSuccess = { prUrl ->
-                    "GitHub રેપોઝિટરીમાં '$feature' માટે ફેરફાર સબમિટ થઈ ગયો છે! 🚀\nGitHub Actions માં નવું APK બિલ્ડ શરૂ થઈ ગયું છે.\n\nલિંક: $prUrl"
+                    "Repo ni files samji ne jaruri changes commit thai gaya chhe! 🚀\nGitHub Actions ma navi APK build thava lagi chhe.\n\nBranch: $prUrl"
                 },
                 onFailure = { error ->
-                    "રેપોઝિટરી અપડેટ કરવામાં ભૂલ આવી: ${error.localizedMessage}\nકૃપા કરીને સેટિંગ્સમાં સાચો GitHub PAT Token ચેક કરો."
+                    "Repo update failed: ${error.localizedMessage}\nGitHub PAT Token check karo."
                 }
             )
         }
 
         if (pendingFeatureRequest != null && isUserRejection(trimmed)) {
             pendingFeatureRequest = null
-            return "સમજી ગયો! ફીચર ઉમેરવાનું રદ કર્યું છે."
+            return "Samji gayo, upgrade cancel karyu chhe."
         }
 
-        onStateChange(AgentState.Thinking("વિચારી રહ્યો છું..."))
+        onStateChange(AgentState.Thinking("Task mate specialized sub-agent tayar kari rahyo chhu..."))
 
-        val availableToolsPrompt = tools.getAllTools().joinToString("\n") { "- ${it.name}: ${it.description}" }
-        val systemPrompt = """
-            તમે CHINTU છો — સ્વાયત્ત AI આસિસ્ટન્ટ.
-            તમારી પાસે હાલ આ ટૂલ્સ ઉપલબ્ધ છે:
-            $availableToolsPrompt
+        val specializedAgent = dynamicAgentManager.resolveOrCreateAgent(userInput)
+        onStateChange(AgentState.Thinking("${specializedAgent.roleName} task handle kari rahyo chhe..."))
 
-            નિયમ:
-            જો યુઝરનું કાર્ય હાલના ટૂલ્સથી શક્ય ન હોય અને નવું ફીચર ઉમેરવાની જરૂર હોય, તો છેલ્લે આ ફોર્મેટમાં લખો:
-            [UNSUPPORTED_TASK: ફીચરનું નામ]
+        val agentPrompt = """
+            Task: $userInput
+            Tools:
+            ${tools.getAllTools().joinToString("\n") { "- ${it.name}: ${it.description}" }}
+
+            Jo aa task existing tools ke code thi na thai sake, to chelle aa tag lakho:
+            [UNSUPPORTED_TASK: feature_name]
         """.trimIndent()
 
-        val request = AiRequest(
-            messages = listOf(AiMessage(role = MessageRole.USER, content = userInput)),
-            systemInstruction = systemPrompt
-        )
-
-        val responseResult = provider.execute(request)
-        val replyText: String = responseResult.fold(
-            onSuccess = { it.text },
-            onFailure = { "ભૂલ આવી: ${it.localizedMessage}" }
-        )
+        val agentExecution = dynamicAgentManager.delegateTask(specializedAgent, agentPrompt)
+        val replyText = agentExecution.getOrElse { "Error: ${it.localizedMessage}" }
 
         val marker = "[UNSUPPORTED_TASK:"
         if (replyText.indexOf(marker) >= 0) {
@@ -82,10 +76,10 @@ class AutonomousConductor(
             pendingFeatureRequest = if (featureName.isNotBlank()) featureName else userInput
 
             val cleanReply = replyText.replace(Regex("\\[UNSUPPORTED_TASK:.*?\\]"), "").trim()
-            return "$cleanReply\n\n⚠️ આ કાર્ય કરવાની ક્ષમતા હાલ ઉપલબ્ધ નથી.\nશું હું આ ફીચરનો કોડ જાતે બનાવીને તમારી GitHub રેપોઝિટરીમાં કમિટ કરી દઉં જેથી નવું APK બની જાય? (હા / ના)"
+            return "🤖 **[Assigned Agent: ${specializedAgent.roleName}]**\n$cleanReply\n\n⚠️ Aa task mate repo ni files update karvi pade tem chhe.\nShu hu GitHub repo ni files context samji ne jarur mujab update ke navi file create kari commit kari dau jethi navi APK bani jaay? (ha / na)"
         }
 
-        return replyText
+        return "🤖 **[${specializedAgent.roleName}]:**\n$replyText"
     }
 
     private fun isUserConfirmation(input: String): Boolean {
