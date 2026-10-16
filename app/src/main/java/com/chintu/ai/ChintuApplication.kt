@@ -27,13 +27,13 @@ class ChintuApplication : Application() {
 
         secureStorage = SecureStorage(this)
         memoryManager = MemoryManager(this, secureStorage)
-        toolRegistry = ToolRegistry(this)
+        toolRegistry = ToolRegistry()
         skillManager = SkillManager(this)
         gitHubService = GitHubService(secureStorage)
         
         val aiProvider = GeminiProvider(secureStorage)
         selfDevelopmentManager = SelfDevelopmentManager(gitHubService, aiProvider)
-        privacyCenter = PrivacyCenter(memoryManager)
-        visionEngine = VisionEngine(this)
+        privacyCenter = PrivacyCenter(secureStorage, memoryManager)
+        visionEngine = VisionEngine(this, secureStorage)
     }
 }
