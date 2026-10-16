@@ -31,7 +31,7 @@ import com.chintu.ai.agent.AutonomousConductor
 import com.chintu.ai.ai.provider.GeminiProvider
 import com.chintu.ai.core.common.AgentState
 import com.chintu.ai.core.common.AppMode
-import com.chintu.ai.memory.MemoryStorage
+import com.chintu.ai.memory.MemoryManager
 import com.chintu.ai.ui.components.JarvisHudCore
 import com.chintu.ai.ui.components.cyberBorder
 import com.chintu.ai.ui.theme.ChintuTheme
@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var ttsManager: TextToSpeechManager
     private lateinit var speechManager: SpeechRecognizerManager
     private lateinit var conductor: AutonomousConductor
-    private lateinit var memoryStorage: MemoryStorage
+    private lateinit var memoryManager: MemoryManager
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
 
         val app = application as ChintuApplication
         ttsManager = TextToSpeechManager(this)
-        memoryStorage = MemoryStorage(this, app.secureStorage)
+        memoryManager = app.memoryManager
         val provider = GeminiProvider(app.secureStorage)
         conductor = AutonomousConductor(
             provider = provider,
@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
                 var appMode by remember { mutableStateOf(AppMode.ONLINE) }
                 var agentState by remember { mutableStateOf<AgentState>(AgentState.Ready) }
                 
-                val savedHistory = remember { memoryStorage.loadConversation() }
+                val savedHistory = remember { memoryManager.loadConversation() }
                 var chatLog by remember {
                     mutableStateOf(
                         if (savedHistory.isNotEmpty()) savedHistory
@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
                 fun appendMessage(msg: String) {
                     val updated = chatLog + msg
                     chatLog = updated
-                    memoryStorage.saveConversation(updated)
+                    memoryManager.saveConversation(updated)
                 }
 
                 val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -293,7 +293,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                                               // PAGE 2: Self-Upgrade & GitHub Evolution Hub
+                                          // PAGE 2: Self-Upgrade & GitHub Evolution Hub
                         if (selectedTab == 1) {
                             Column(
                                 modifier = Modifier
@@ -414,4 +414,3 @@ class MainActivity : ComponentActivity() {
         speechManager.stopListening()
     }
 }
- 
