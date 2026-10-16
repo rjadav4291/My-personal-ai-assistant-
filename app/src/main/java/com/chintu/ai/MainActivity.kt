@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
                 var selectedTab by remember { mutableStateOf(0) }
                 var appMode by remember { mutableStateOf(AppMode.ONLINE) }
                 var agentState by remember { mutableStateOf<AgentState>(AgentState.Ready) }
+                var showMoreMenu by remember { mutableStateOf(false) }
                 
                 val savedHistory = remember { memoryManager.loadConversation() }
                 var chatLog by remember {
@@ -149,9 +150,10 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color(0xFF070B12))
-                            .padding(14.dp),
+                            .padding(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Top Navigation Header with MORE (⋮) Options
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -160,42 +162,67 @@ class MainActivity : ComponentActivity() {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "CHINTU v1.0",
+                                text = "CHINTU",
                                 color = Color(0xFF00E5FF),
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                            
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 TabRow(
                                     selectedTabIndex = selectedTab,
-                                    modifier = Modifier.width(180.dp),
+                                    modifier = Modifier.width(160.dp),
                                     containerColor = Color.Transparent,
                                     contentColor = Color(0xFF00E5FF)
                                 ) {
                                     Tab(
                                         selected = selectedTab == 0,
                                         onClick = { selectedTab = 0 },
-                                        text = { Text("HUD", fontSize = 12.sp) }
+                                        text = { Text("HUD", fontSize = 11.sp) }
                                     )
                                     Tab(
                                         selected = selectedTab == 1,
                                         onClick = { selectedTab = 1 },
-                                        text = { Text("UPGRADE", fontSize = 12.sp) }
+                                        text = { Text("UPGRADE", fontSize = 11.sp) }
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(6.dp))
-                                IconButton(onClick = { showKeyDialog = true }) {
-                                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
+
+                                Box {
+                                    IconButton(onClick = { showMoreMenu = true }) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Color.White)
+                                    }
+                                    DropdownMenu(
+                                        expanded = showMoreMenu,
+                                        onDismissRequest = { showMoreMenu = false },
+                                        modifier = Modifier.background(Color(0xFF101622))
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("⚙️ Settings & API", color = Color.White, fontSize = 13.sp) },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                showKeyDialog = true
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("🧹 Clear History", color = Color(0xFFFF5252), fontSize = 13.sp) },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                memoryManager.clearMemory()
+                                                chatLog = listOf("CHINTU: ચેટ હિસ્ટ્રી ક્લીન થઈ ગઈ છે.")
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
 
+                        // PAGE 1: HUD & Conversational Assistant
                         if (selectedTab == 0) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(180.dp),
+                                    .height(170.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 JarvisHudCore(state = agentState)
@@ -293,7 +320,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                                          // PAGE 2: Self-Upgrade & GitHub Evolution Hub
+                                                // PAGE 2: Self-Upgrade & GitHub Evolution Hub
                         if (selectedTab == 1) {
                             Column(
                                 modifier = Modifier
