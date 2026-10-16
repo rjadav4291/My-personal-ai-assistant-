@@ -19,14 +19,20 @@ class SelfDevelopmentManager(
             val timeStamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
             val branchName = "feature/auto-$timeStamp"
 
-            // ૧. GitHub પર મેઇન બ્રાન્ચમાંથી નવી ફીચર બ્રાન્ચ બનાવવી
-            gitHubService.createBranch(branchName).getOrThrow()
+            // 1. Get default branch (main) latest commit SHA
+            val repoInfo = gitHubService.getRepoInfo().getOrThrow()
+            val defaultBranch = repoInfo.defaultBranch.ifBlank { "main" }
+            val mainRef = gitHubService.getRef("heads/$defaultBranch").getOrThrow()
+            val baseSha = mainRef.sha
 
-            // ૨. AI દ્વારા ફીચર લોગ અને કોડ સ્પેસિફિકેશન ફાઇલ જનરેટ કરવી
-            val systemInstruction = "You are CHINTU Self-Upgrade Architect. Document the new feature implementation and append Kotlin implementation notes."
+            // 2. Create new branch using baseSha
+            gitHubService.createBranch(branchName, baseSha).getOrThrow()
+
+            // 3. AI code generation
+            val systemInstruction = "You are CHINTU Self-Upgrade Architect. Write Kotlin code specification."
             val aiResponse = aiProvider.execute(
                 AiRequest(
-                    messages = listOf(AiMessage(role = MessageRole.USER, content = "Generate upgrade spec for feature: $featureDescription. User prompt: $userPrompt")),
+                    messages = listOf(AiMessage(role = MessageRole.USER, content = "Feature: $featureDescription. Prompt: $userPrompt")),
                     systemInstruction = systemInstruction
                 )
             ).getOrThrow()
@@ -48,23 +54,15 @@ class SelfDevelopmentManager(
                 }
             """.trimIndent()
 
-            // ૩. નવી ફાઈલ સીધી GitHub માં કમિટ કરવી
-            gitHubService.commitFile(
-                branch = branchName,
+            // 4. Commit and push the file to the new branch
+            gitHubService.createOrUpdateFile(
                 path = filePath,
                 content = fileContent,
-                commitMessage = "feat: autonomous upgrade for $featureDescription [automated]"
+                commitMessage = "feat: autonomous upgrade for $featureDescription [automated]",
+                branch = branchName
             ).getOrThrow()
 
-            // ૪. પુલ રિક્વેસ્ટ બનાવવી જેથી GitHub Actions ઓટોમેટિક APK બિલ્ડ શરુ કરી દે
-            val prUrl = gitHubService.createPullRequest(
-                title = "Automated Self-Upgrade: $featureDescription",
-                head = branchName,
-                base = "main",
-                body = "CHINTU has autonomously generated and committed the required code for '$featureDescription'."
-            ).getOrThrow()
-
-            Result.success(prUrl)
+            Result.success("https://github.com/${repoInfo.fullName}/tree/$branchName")
         } catch (e: Exception) {
             Result.failure(e)
         }
