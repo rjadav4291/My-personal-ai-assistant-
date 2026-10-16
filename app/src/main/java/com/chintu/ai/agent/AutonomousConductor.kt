@@ -18,7 +18,6 @@ class AutonomousConductor(
     private val selfDevManager: SelfDevelopmentManager,
     private val skillManager: SkillManager
 ) {
-    // છેલ્લે અપૂર્ણ રહેલા ટાસ્કને યાદ રાખવા માટેનો વેરિયેબલ
     private var pendingFeatureRequest: String? = null
 
     suspend fun processQuery(
@@ -28,11 +27,10 @@ class AutonomousConductor(
     ): String {
         val trimmed = userInput.trim()
 
-        // ૧. જો યુઝરે સેલ્ફ-અપગ્રેડ માટે મંજૂરી (હા / Yes) આપી હોય
         if (pendingFeatureRequest != null && isUserConfirmation(trimmed)) {
             val feature = pendingFeatureRequest!!
             pendingFeatureRequest = null
-            onStateChange(AgentState.Executing)
+            onStateChange(AgentState.Executing("GitHub par upgrade push kari rahyo chhu..."))
 
             val upgradeResult = selfDevManager.developAndDeployFeature(
                 featureDescription = feature,
@@ -41,33 +39,29 @@ class AutonomousConductor(
 
             return upgradeResult.fold(
                 onSuccess = { prUrl ->
-                    "મેં મારી જાતે '$feature' ફીચર તમારી GitHub રેપોઝિટરીમાં કમિટ કરી દીધું છે! 🚀\nGitHub Actions માં નવું APK બિલ્ડ થવાનું શરૂ થઈ ગયું છે. થોડી વારમાં Actions ટેબમાંથી નવું APK ડાઉનલોડ કરી શકશો.\n\nલિંક: $prUrl"
+                    "GitHub repo ma '$feature' feature commit thai gayu chhe! 🚀\nGitHub Actions ma navi APK build thava lagi chhe.\n\nPR: $prUrl"
                 },
                 onFailure = { error ->
-                    "માફ કરશો, રેપોઝિટરી અપડેટ કરવામાં ખામી આવી: ${error.localizedMessage}\nકૃપા કરીને સેટિંગ્સમાં GitHub PAT Token બરાબર તપાસો."
+                    "Repo update karva ma khami aavi: ${error.localizedMessage}\nGitHub PAT Token barabar chhe ke nahi te check karo."
                 }
             )
         }
 
-        // જો યુઝરે ના પાડી હોય
         if (pendingFeatureRequest != null && isUserRejection(trimmed)) {
             pendingFeatureRequest = null
-            return "સમજી ગયો! મેં આ ફીચર ઉમેરવાનું રદ કર્યું છે. બીજું શું કામ છે?"
+            return "Samji gayo! Feature add karvanu cancel karyu chhe."
         }
 
-        // ૨. સામાન્ય ક્વેરી પ્રોસેસિંગ
-        onStateChange(AgentState.Thinking("વિચારી રહ્યો છું..."))
+        onStateChange(AgentState.Thinking("Vichari rahyo chhu..."))
 
         val availableToolsPrompt = tools.getAllTools().joinToString("\n") { "- ${it.name}: ${it.description}" }
         val systemPrompt = """
-            તમે CHINTU છો — એક સ્વાયત્ત અને શક્તિશાળી AI આસિસ્ટન્ટ.
-            તમારી પાસે હાલ આ ટૂલ્સ ઉપલબ્ધ છે:
+            Tame CHINTU chho - ek autonomous AI assistant.
+            Tamar paase aa tools uplabdh chhe:
             $availableToolsPrompt
 
-            નિયમ:
-            જો યુઝરનું કાર્ય હાલના ટૂલ્સ કે સામાન્ય માહિતીથી ન થઈ શકે તેવું એડવાન્સ ફીચર હોય (જેમ કે નવી API, નવું સિસ્ટમ ટૂલ, સ્પેશિયલ કેલ્ક્યુલેશન), તો સ્પષ્ટ જણાવો કે આ ફીચર હાલ મારામાં નથી.
-            અને અંતે બરાબર આ ફોર્મેટમાં લખો:
-            [UNSUPPORTED_TASK: ફીચરનું ટૂંકું નામ]
+            Jo user no task tamara tools thi na thai shake, to saf shabdo ma kaho ane chelle aa format ma lakho:
+            [UNSUPPORTED_TASK: feature_name]
         """.trimIndent()
 
         val request = AiRequest(
@@ -76,15 +70,15 @@ class AutonomousConductor(
         )
 
         val responseResult = provider.execute(request)
-        val replyText = responseResult.getOrElse { "ભૂલ આવી: ${it.localizedMessage}" }
+        val replyText: String = responseResult.getOrElse { "Error: ${it.localizedMessage}" }
 
-        // ૩. ટાસ્ક અનસપોર્ટેડ છે કે નહીં તે ચકાસવું
-        if (replyText.contains("[UNSUPPORTED_TASK:")) {
-            val featureName = replyText.substringAfter("[UNSUPPORTED_TASK:").substringBefore("]").trim()
+        val marker = "[UNSUPPORTED_TASK:"
+        if (replyText.indexOf(marker) >= 0) {
+            val featureName = replyText.substringAfter(marker).substringBefore("]").trim()
             pendingFeatureRequest = if (featureName.isNotBlank()) featureName else userInput
 
             val cleanReply = replyText.replace(Regex("\\[UNSUPPORTED_TASK:.*?\\]"), "").trim()
-            return "$cleanReply\n\n⚠️ આ કાર્ય કરવા માટેની ક્ષમતા હાલ મારી સિસ્ટમમાં ઉપલબ્ધ નથી.\nશું હું આ ફીચરનો કોડ જાતે બનાવીને તમારી GitHub રેપોઝિટરીમાં કમિટ કરી દઉં જેથી નવું APK બની જાય? (હા / ના માં જવાબ આપો)"
+            return "$cleanReply\n\n⚠️ Aa feature mara ma nathi.\nShu hu aano code generate kari ne tamari GitHub repo ma commit kari dau jethi navi APK bani jaay? (ha / na ma javab aapo)"
         }
 
         return replyText
