@@ -1,72 +1,39 @@
 package com.chintu.ai
 
 import android.app.Application
-import com.chintu.ai.agent.MultiAgentOrchestrator
 import com.chintu.ai.ai.provider.GeminiProvider
-import com.chintu.ai.automation.AutomationManager
 import com.chintu.ai.core.security.SecureStorage
 import com.chintu.ai.development.GitHubService
 import com.chintu.ai.development.SelfDevelopmentManager
 import com.chintu.ai.memory.MemoryManager
 import com.chintu.ai.privacy.PrivacyCenter
 import com.chintu.ai.skills.SkillManager
-import com.chintu.ai.tools.AndroidSystemTools
-import com.chintu.ai.tools.ProductivityTools
 import com.chintu.ai.tools.ToolRegistry
 import com.chintu.ai.vision.VisionEngine
-import com.chintu.ai.web.WebResearchTool
 
 class ChintuApplication : Application() {
 
     lateinit var secureStorage: SecureStorage
-        private set
     lateinit var memoryManager: MemoryManager
-        private set
-    lateinit var skillManager: SkillManager
-        private set
     lateinit var toolRegistry: ToolRegistry
-        private set
+    lateinit var skillManager: SkillManager
     lateinit var gitHubService: GitHubService
-        private set
     lateinit var selfDevelopmentManager: SelfDevelopmentManager
-        private set
-    lateinit var visionEngine: VisionEngine
-        private set
-    lateinit var automationManager: AutomationManager
-        private set
-    lateinit var multiAgentOrchestrator: MultiAgentOrchestrator
-        private set
     lateinit var privacyCenter: PrivacyCenter
-        private set
+    lateinit var visionEngine: VisionEngine
 
     override fun onCreate() {
         super.onCreate()
-        instance = this
-        secureStorage = SecureStorage(applicationContext)
-        memoryManager = MemoryManager(applicationContext)
-        skillManager = SkillManager(applicationContext)
-        toolRegistry = ToolRegistry()
-        visionEngine = VisionEngine(applicationContext, secureStorage)
-        automationManager = AutomationManager(applicationContext)
-        privacyCenter = PrivacyCenter(secureStorage, memoryManager)
 
-        val systemTools = AndroidSystemTools(applicationContext)
-        val productivityTools = ProductivityTools(applicationContext)
-
-        toolRegistry.register(systemTools.getBatteryTool())
-        toolRegistry.register(systemTools.getLaunchAppTool())
-        toolRegistry.register(productivityTools.getMapsNavigationTool())
-        toolRegistry.register(productivityTools.getYouTubeSearchTool())
-        toolRegistry.register(WebResearchTool())
-
+        secureStorage = SecureStorage(this)
+        memoryManager = MemoryManager(this, secureStorage)
+        toolRegistry = ToolRegistry(this)
+        skillManager = SkillManager(this)
         gitHubService = GitHubService(secureStorage)
+        
         val aiProvider = GeminiProvider(secureStorage)
         selfDevelopmentManager = SelfDevelopmentManager(gitHubService, aiProvider)
-        multiAgentOrchestrator = MultiAgentOrchestrator(aiProvider)
-    }
-
-    companion object {
-        lateinit var instance: ChintuApplication
-            private set
+        privacyCenter = PrivacyCenter(memoryManager)
+        visionEngine = VisionEngine(this)
     }
 }
