@@ -30,7 +30,7 @@ class AutonomousConductor(
         if (pendingFeatureRequest != null && isUserConfirmation(trimmed)) {
             val feature = pendingFeatureRequest!!
             pendingFeatureRequest = null
-            onStateChange(AgentState.Executing("GitHub par upgrade push kari rahyo chhu..."))
+            onStateChange(AgentState.Executing("GitHub પર ફીચર કમિટ કરી રહ્યો છું..."))
 
             val upgradeResult = selfDevManager.developAndDeployFeature(
                 featureDescription = feature,
@@ -39,29 +39,30 @@ class AutonomousConductor(
 
             return upgradeResult.fold(
                 onSuccess = { prUrl ->
-                    "GitHub repo ma '$feature' feature commit thai gayu chhe! 🚀\nGitHub Actions ma navi APK build thava lagi chhe.\n\nPR: $prUrl"
+                    "GitHub રેપોઝિટરીમાં '$feature' માટે ફેરફાર સબમિટ થઈ ગયો છે! 🚀\nGitHub Actions માં નવું APK બિલ્ડ શરૂ થઈ ગયું છે.\n\nલિંક: $prUrl"
                 },
                 onFailure = { error ->
-                    "Repo update karva ma khami aavi: ${error.localizedMessage}\nGitHub PAT Token barabar chhe ke nahi te check karo."
+                    "રેપોઝિટરી અપડેટ કરવામાં ભૂલ આવી: ${error.localizedMessage}\nકૃપા કરીને સેટિંગ્સમાં સાચો GitHub PAT Token ચેક કરો."
                 }
             )
         }
 
         if (pendingFeatureRequest != null && isUserRejection(trimmed)) {
             pendingFeatureRequest = null
-            return "Samji gayo! Feature add karvanu cancel karyu chhe."
+            return "સમજી ગયો! ફીચર ઉમેરવાનું રદ કર્યું છે."
         }
 
-        onStateChange(AgentState.Thinking("Vichari rahyo chhu..."))
+        onStateChange(AgentState.Thinking("વિચારી રહ્યો છું..."))
 
         val availableToolsPrompt = tools.getAllTools().joinToString("\n") { "- ${it.name}: ${it.description}" }
         val systemPrompt = """
-            Tame CHINTU chho - ek autonomous AI assistant.
-            Tamar paase aa tools uplabdh chhe:
+            તમે CHINTU છો — સ્વાયત્ત AI આસિસ્ટન્ટ.
+            તમારી પાસે હાલ આ ટૂલ્સ ઉપલબ્ધ છે:
             $availableToolsPrompt
 
-            Jo user no task tamara tools thi na thai shake, to saf shabdo ma kaho ane chelle aa format ma lakho:
-            [UNSUPPORTED_TASK: feature_name]
+            નિયમ:
+            જો યુઝરનું કાર્ય હાલના ટૂલ્સથી શક્ય ન હોય અને નવું ફીચર ઉમેરવાની જરૂર હોય, તો છેલ્લે આ ફોર્મેટમાં લખો:
+            [UNSUPPORTED_TASK: ફીચરનું નામ]
         """.trimIndent()
 
         val request = AiRequest(
@@ -70,7 +71,10 @@ class AutonomousConductor(
         )
 
         val responseResult = provider.execute(request)
-        val replyText: String = responseResult.getOrElse { "Error: ${it.localizedMessage}" }
+        val replyText: String = responseResult.fold(
+            onSuccess = { it.text },
+            onFailure = { "ભૂલ આવી: ${it.localizedMessage}" }
+        )
 
         val marker = "[UNSUPPORTED_TASK:"
         if (replyText.indexOf(marker) >= 0) {
@@ -78,7 +82,7 @@ class AutonomousConductor(
             pendingFeatureRequest = if (featureName.isNotBlank()) featureName else userInput
 
             val cleanReply = replyText.replace(Regex("\\[UNSUPPORTED_TASK:.*?\\]"), "").trim()
-            return "$cleanReply\n\n⚠️ Aa feature mara ma nathi.\nShu hu aano code generate kari ne tamari GitHub repo ma commit kari dau jethi navi APK bani jaay? (ha / na ma javab aapo)"
+            return "$cleanReply\n\n⚠️ આ કાર્ય કરવાની ક્ષમતા હાલ ઉપલબ્ધ નથી.\nશું હું આ ફીચરનો કોડ જાતે બનાવીને તમારી GitHub રેપોઝિટરીમાં કમિટ કરી દઉં જેથી નવું APK બની જાય? (હા / ના)"
         }
 
         return replyText
