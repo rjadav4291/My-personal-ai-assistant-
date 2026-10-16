@@ -1,45 +1,23 @@
 package com.chintu.ai.memory
 
 import android.content.Context
-import java.io.File
-import kotlinx.serialization.Serializable
+import com.chintu.ai.core.security.SecureStorage
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-@Serializable
-data class MemoryEntry(
-    val id: String,
-    val key: String,
-    val value: String,
-    val timestamp: Long = System.currentTimeMillis()
-)
+class MemoryStorage(context: Context, private val secureStorage: SecureStorage) {
 
-class MemoryManager(context: Context) {
-    private val memoryFile = File(context.filesDir, "chintu_memory.json")
-    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
+    fun saveConversation(messages: List<String>) {
+        val jsonString = Json.encodeToString(messages)
+        secureStorage.saveString("CHAT_HISTORY", jsonString)
+    }
 
-    @Synchronized
-    fun getAllMemories(): List<MemoryEntry> {
-        if (!memoryFile.exists()) return emptyList()
+    fun loadConversation(): List<String> {
+        val jsonString = secureStorage.getString("CHAT_HISTORY") ?: return emptyList()
         return try {
-            json.decodeFromString<List<MemoryEntry>>(memoryFile.readText())
+            Json.decodeFromString(jsonString)
         } catch (e: Exception) {
             emptyList()
-        }
-    }
-
-    @Synchronized
-    fun saveMemory(key: String, value: String) {
-        val current = getAllMemories().toMutableList()
-        current.removeAll { it.key.equals(key, ignoreCase = true) }
-        current.add(MemoryEntry(id = System.currentTimeMillis().toString(), key = key, value = value))
-        memoryFile.writeText(json.encodeToString(current))
-    }
-
-    @Synchronized
-    fun clearMemories() {
-        if (memoryFile.exists()) {
-            memoryFile.delete()
         }
     }
 }
