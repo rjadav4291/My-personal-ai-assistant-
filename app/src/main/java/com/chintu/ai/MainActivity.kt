@@ -34,8 +34,7 @@ import com.chintu.ai.agent.AutonomousConductor
 import com.chintu.ai.ai.provider.GeminiProvider
 import com.chintu.ai.core.common.AgentState
 import com.chintu.ai.core.common.AppMode
-import com.chintu.ai.ui.components.AgentPanel
-import com.chintu.ai.ui.components.FuturisticOrb
+import com.chintu.ai.ui.components.JarvisHudCore
 import com.chintu.ai.ui.components.cyberBorder
 import com.chintu.ai.ui.theme.ChintuTheme
 import com.chintu.ai.voice.SpeechRecognizerManager
@@ -71,18 +70,30 @@ class MainActivity : ComponentActivity() {
             ChintuTheme {
                 var appMode by remember { mutableStateOf(AppMode.ONLINE) }
                 var agentState by remember { mutableStateOf<AgentState>(AgentState.Ready) }
-                var chatLog by remember { mutableStateOf(listOf("CHINTU: સિસ્ટમ, પ્રોડક્ટિવિટી અને પ્રાઇવસી કંટ્રોલ સક્રિય છે.", "User: તમારા એજન્ટ્સ બતાવો.", "CHINTU: બિલકુલ, આ મારા સક્રિય એજન્ટ્સ અને તેમની લાઇવ સ્થિતિ છે:")) }
+                var chatLog by remember { mutableStateOf(listOf("CHINTU: JARVIS HUD ઓનલાઇન. સિસ્ટમ તૈયાર છે.")) }
                 var textInput by remember { mutableStateOf("") }
                 var showKeyDialog by remember { mutableStateOf(false) }
-                var apiKeyInput by remember { mutableStateOf(app.secureStorage.getString("GEMINI_API_KEY") ?: "") }
-                var gitHubTokenInput by remember { mutableStateOf(app.secureStorage.getString("GITHUB_PAT_TOKEN") ?: "") }
+
+                // Configuration State Variables
+                var apiKeyInput by remember {
+                    mutableStateOf(app.secureStorage.getString("API_KEY") ?: app.secureStorage.getString("GEMINI_API_KEY") ?: "")
+                }
+                var serverUrlInput by remember {
+                    mutableStateOf(app.secureStorage.getString("SERVER_ENDPOINT") ?: "")
+                }
+                var modelNameInput by remember {
+                    mutableStateOf(app.secureStorage.getString("MODEL_NAME") ?: "gemini-1.5-flash")
+                }
+                var gitHubTokenInput by remember {
+                    mutableStateOf(app.secureStorage.getString("GITHUB_PAT_TOKEN") ?: "")
+                }
 
                 val imagePickerLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri: Uri? ->
                     uri?.let {
                         agentState = AgentState.Thinking("ફોટો એનાલાઈઝ કરી રહ્યો છું...")
-                        chatLog = chatLog + "User: [ઇમેજ અપલોડ કરી]"
+                        chatLog = chatLog + "User: [ઇમેજ વિઝન સ્કેન]"
                         lifecycleScope.launch {
                             val visionResult = app.visionEngine.analyzeImage(it)
                             val reply = visionResult.fold(
@@ -91,9 +102,7 @@ class MainActivity : ComponentActivity() {
                             )
                             chatLog = chatLog + "CHINTU: $reply"
                             agentState = AgentState.Speaking(reply)
-                            ttsManager.speak(reply) {
-                                agentState = AgentState.Ready
-                            }
+                            ttsManager.speak(reply) { agentState = AgentState.Ready }
                         }
                     }
                 }
@@ -110,14 +119,10 @@ class MainActivity : ComponentActivity() {
                                 }
                                 chatLog = chatLog + "CHINTU: $reply"
                                 agentState = AgentState.Speaking(reply)
-                                ttsManager.speak(reply) {
-                                    agentState = AgentState.Ready
-                                }
+                                ttsManager.speak(reply) { agentState = AgentState.Ready }
                             }
                         },
-                        onError = { error ->
-                            agentState = AgentState.Error(error)
-                        }
+                        onError = { error -> agentState = AgentState.Error(error) }
                     )
                 }
 
@@ -125,186 +130,196 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF0A0E14))
+                            .background(Color(0xFF070B12))
+                            .padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(
+                        // Top HUD Bar
+                        Row(
                             modifier = Modifier
-                                .fillMaxHeight()
-                                .width(130.dp)
-                                .background(Color(0xFF0E131F))
-                                .padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceBetween
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .cyberBorder(),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF101622))
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                                        Icon(Icons.Default.Image, contentDescription = "Upload", tint = Color(0xFF00E5FF))
-                                    }
-                                    Text("Image/Upload", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "CHINTU v1.0",
+                                color = Color(0xFF00E5FF),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AssistChip(
+                                    onClick = {
+                                        appMode = when (appMode) {
+                                            AppMode.ONLINE -> AppMode.OFFLINE
+                                            AppMode.OFFLINE -> AppMode.PRIVATE
+                                            AppMode.PRIVATE -> AppMode.AUTO
+                                            AppMode.AUTO -> AppMode.ONLINE
+                                        }
+                                    },
+                                    label = { Text(appMode.name, color = Color(0xFF00E5FF), fontSize = 11.sp) },
+                                    colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF101622))
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                IconButton(onClick = { showKeyDialog = true }) {
+                                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
                                 }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .background(Color(0xFF00E5FF).copy(alpha = 0.15f), RoundedCornerShape(25.dp))
-                                    .border(1.dp, Color(0xFF00E5FF), RoundedCornerShape(25.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("🎙️", fontSize = 18.sp)
                             }
                         }
 
-                        Column(
+                        // Central JARVIS HUD Core & Reactor
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            JarvisHudCore(state = agentState)
+                        }
+
+                        // JARVIS 4 Corner Agent Status Chips
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val activeGreen = Color(0xFF00FF66)
+                            val agentChips = listOf(
+                                "ORCH" to activeGreen,
+                                "RESEARCH" to Color(0xFF00E5FF),
+                                "CODER" to Color(0xFFFF9100),
+                                "VOICE" to Color(0xFFB388FF)
+                            )
+                            agentChips.forEach { (name, color) ->
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFF101622), RoundedCornerShape(6.dp))
+                                        .border(1.dp, color.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text("● $name", color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Transparent Holographic Chat Transcript
+                        LazyColumn(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight()
-                                .padding(12.dp)
+                                .fillMaxWidth()
+                                .cyberBorder()
+                                .background(Color(0xFF0E131F).copy(alpha = 0.85f))
+                                .padding(10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            items(chatLog) { msg ->
                                 Text(
-                                    text = "CHINTU v1.0",
-                                    color = Color(0xFF00E5FF),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
+                                    text = msg,
+                                    color = if (msg.startsWith("User:")) Color.White else Color(0xFF00E5FF),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(vertical = 3.dp),
+                                    fontFamily = FontFamily.SansSerif
                                 )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    AssistChip(
-                                        onClick = {
-                                            appMode = when (appMode) {
-                                                AppMode.ONLINE -> AppMode.OFFLINE
-                                                AppMode.OFFLINE -> AppMode.PRIVATE
-                                                AppMode.PRIVATE -> AppMode.AUTO
-                                                AppMode.AUTO -> AppMode.ONLINE
-                                            }
-                                        },
-                                        label = { Text(appMode.name, color = Color(0xFF00E5FF)) },
-                                        colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF101622))
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    IconButton(onClick = { showKeyDialog = true }) {
-                                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
-                                    }
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(0.45f)
-                                    .fillMaxWidth(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                FuturisticOrb(state = agentState)
-                            }
-
-                            LazyColumn(
-                                modifier = Modifier
-                                    .weight(0.4f)
-                                    .fillMaxWidth()
-                                    .cyberBorder()
-                                    .background(Color(0xFF0E131F).copy(alpha = 0.85f))
-                                    .padding(10.dp)
-                            ) {
-                                items(chatLog) { msg ->
-                                    Text(
-                                        text = msg,
-                                        color = if (msg.startsWith("User:")) Color.White else Color(0xFF00E5FF),
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(vertical = 3.dp),
-                                        fontFamily = FontFamily.SansSerif
-                                    )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp)
-                                    .cyberBorder()
-                                    .background(Color(0xFF101622))
-                                    .padding(horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                OutlinedTextField(
-                                    value = textInput,
-                                    onValueChange = { textInput = it },
-                                    modifier = Modifier.weight(1f),
-                                    placeholder = { Text("આદેશ આપો...", color = Color.Gray, fontSize = 12.sp) },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Color.Transparent,
-                                        unfocusedBorderColor = Color.Transparent,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White
-                                    )
-                                )
-                                IconButton(onClick = {
-                                    if (ContextCompat.checkSelfPermission(
-                                            this@MainActivity,
-                                            Manifest.permission.RECORD_AUDIO
-                                        ) == PackageManager.PERMISSION_GRANTED
-                                    ) {
-                                        agentState = AgentState.Listening
-                                        speechManager.startListening(Locale("gu", "IN"))
-                                    } else {
-                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                    }
-                                }) {
-                                    Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = Color(0xFF00E5FF))
-                                }
-                                IconButton(onClick = {
-                                    if (textInput.isNotBlank()) {
-                                        val input = textInput
-                                        textInput = ""
-                                        chatLog = chatLog + "User: $input"
-                                        lifecycleScope.launch {
-                                            val reply = conductor.processQuery(input, appMode) { state ->
-                                                agentState = state
-                                            }
-                                            chatLog = chatLog + "CHINTU: $reply"
-                                            ttsManager.speak(reply)
-                                        }
-                                    }
-                                }) {
-                                    Icon(Icons.Default.Send, contentDescription = "Send", tint = Color(0xFF00E5FF))
-                                }
                             }
                         }
 
-                        AgentPanel()
+                        // Bottom Cyber Command Input
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .cyberBorder()
+                                .background(Color(0xFF101622))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                                Icon(Icons.Default.Image, contentDescription = "Vision", tint = Color(0xFF00E5FF))
+                            }
+                            OutlinedTextField(
+                                value = textInput,
+                                onValueChange = { textInput = it },
+                                modifier = Modifier.weight(1f),
+                                placeholder = { Text("આદેશ આપો...", color = Color.Gray, fontSize = 12.sp) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                )
+                            )
+                            IconButton(onClick = {
+                                if (ContextCompat.checkSelfPermission(
+                                        this@MainActivity,
+                                        Manifest.permission.RECORD_AUDIO
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    agentState = AgentState.Listening
+                                    speechManager.startListening(Locale("gu", "IN"))
+                                } else {
+                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            }) {
+                                Icon(Icons.Default.Mic, contentDescription = "Voice", tint = Color(0xFF00E5FF))
+                            }
+                            IconButton(onClick = {
+                                if (textInput.isNotBlank()) {
+                                    val input = textInput
+                                    textInput = ""
+                                    chatLog = chatLog + "User: $input"
+                                    lifecycleScope.launch {
+                                        val reply = conductor.processQuery(input, appMode) { state ->
+                                            agentState = state
+                                        }
+                                        chatLog = chatLog + "CHINTU: $reply"
+                                        ttsManager.speak(reply)
+                                    }
+                                }
+                            }) {
+                                Icon(Icons.Default.Send, contentDescription = "Send", tint = Color(0xFF00E5FF))
+                            }
+                        }
                     }
                 }
 
+                // AI Engine, Model Selection & Multi-Server Configuration Dialog
                 if (showKeyDialog) {
                     AlertDialog(
                         onDismissRequest = { showKeyDialog = false },
-                        title = { Text("Settings & Privacy Center") },
+                        title = { Text("AI Engine & Server Config", fontSize = 16.sp) },
                         text = {
                             Column {
-                                Text("Gemini API Key:", fontSize = 12.sp)
+                                Text("API Key (Gemini / Groq / OpenAI):", fontSize = 11.sp)
                                 OutlinedTextField(
                                     value = apiKeyInput,
                                     onValueChange = { apiKeyInput = it },
                                     singleLine = true
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("GitHub Token (PAT for Self-Upgrade):", fontSize = 12.sp)
+
+                                Text("Model Name (e.g. gemini-1.5-flash, llama-3.3-70b):", fontSize = 11.sp)
+                                OutlinedTextField(
+                                    value = modelNameInput,
+                                    onValueChange = { modelNameInput = it },
+                                    singleLine = true
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text("Custom Server Endpoint (ખાલી રાખો જો ડાયરેક્ટ Gemini વાપરવું હોય):", fontSize = 11.sp)
+                                OutlinedTextField(
+                                    value = serverUrlInput,
+                                    onValueChange = { serverUrlInput = it },
+                                    placeholder = { Text("https://api.groq.com/openai/v1/chat/completions", fontSize = 10.sp) },
+                                    singleLine = true
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text("GitHub Token (PAT - Self-Upgrade માટે):", fontSize = 11.sp)
                                 OutlinedTextField(
                                     value = gitHubTokenInput,
                                     onValueChange = { gitHubTokenInput = it },
@@ -314,11 +329,14 @@ class MainActivity : ComponentActivity() {
                         },
                         confirmButton = {
                             Button(onClick = {
+                                app.secureStorage.saveString("API_KEY", apiKeyInput.trim())
                                 app.secureStorage.saveString("GEMINI_API_KEY", apiKeyInput.trim())
+                                app.secureStorage.saveString("MODEL_NAME", modelNameInput.trim())
+                                app.secureStorage.saveString("SERVER_ENDPOINT", serverUrlInput.trim())
                                 app.secureStorage.saveString("GITHUB_PAT_TOKEN", gitHubTokenInput.trim())
                                 showKeyDialog = false
                             }) {
-                                Text("Save")
+                                Text("Save Config")
                             }
                         },
                         dismissButton = {
