@@ -19,20 +19,22 @@ class SelfDevelopmentManager(
             val timeStamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
             val branchName = "feature/auto-$timeStamp"
 
-            // 1. Get default branch (main) latest commit SHA
-            val repoInfo = gitHubService.getRepoInfo().getOrThrow()
-            val defaultBranch = repoInfo.defaultBranch.ifBlank { "main" }
-            val mainRef = gitHubService.getRef("heads/$defaultBranch").getOrThrow()
-            val baseSha = mainRef.sha
+            // 1. Get default branch (main) SHA
+            val baseSha = gitHubService.getBranchSha("main").getOrThrow()
 
-            // 2. Create new branch using baseSha
+            // 2. Create new branch from main
             gitHubService.createBranch(branchName, baseSha).getOrThrow()
 
             // 3. AI code generation
             val systemInstruction = "You are CHINTU Self-Upgrade Architect. Write Kotlin code specification."
             val aiResponse = aiProvider.execute(
                 AiRequest(
-                    messages = listOf(AiMessage(role = MessageRole.USER, content = "Feature: $featureDescription. Prompt: $userPrompt")),
+                    messages = listOf(
+                        AiMessage(
+                            role = MessageRole.USER,
+                            content = "Feature: $featureDescription. Prompt: $userPrompt"
+                        )
+                    ),
                     systemInstruction = systemInstruction
                 )
             ).getOrThrow()
@@ -62,7 +64,7 @@ class SelfDevelopmentManager(
                 branch = branchName
             ).getOrThrow()
 
-            Result.success("https://github.com/${repoInfo.fullName}/tree/$branchName")
+            Result.success("https://github.com/rjadav4291/My-personal-ai-assistant-/tree/$branchName")
         } catch (e: Exception) {
             Result.failure(e)
         }
