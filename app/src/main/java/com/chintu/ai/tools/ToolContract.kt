@@ -3,6 +3,7 @@ package com.chintu.ai.tools
 sealed class ToolResult {
     data class Success(val output: String) : ToolResult()
     data class Error(val message: String) : ToolResult()
+    data class Failure(val message: String) : ToolResult()
 }
 
 interface ToolContract {
