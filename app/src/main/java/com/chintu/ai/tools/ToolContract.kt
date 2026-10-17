@@ -1,8 +1,8 @@
 package com.chintu.ai.tools
 
-sealed interface ToolResult {
-    data class Success(val message: String) : ToolResult
-    data class Failure(val cause: String) : ToolResult
+sealed class ToolResult {
+    data class Success(val output: String) : ToolResult()
+    data class Error(val message: String) : ToolResult()
 }
 
 interface ToolContract {
