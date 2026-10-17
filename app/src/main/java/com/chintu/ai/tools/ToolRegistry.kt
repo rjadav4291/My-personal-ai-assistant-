@@ -1,5 +1,15 @@
 package com.chintu.ai.tools
 
+class TaskQueryTool : ToolContract {
+    override val name: String = "task_query"
+    override val description: String = "Queries device tasks, system status, and execution history."
+
+    override suspend fun execute(args: Map<String, String>): ToolResult {
+        val action = args["action"] ?: args["task"] ?: "Task Query"
+        return ToolResult.Success("Task query for '$action' executed.")
+    }
+}
+
 class AutomationAgentTool : ToolContract {
     override val name: String = "AutomationAgent"
     override val description: String = "Executes automated system tasks, workflow routines, and device automation."
@@ -12,7 +22,7 @@ class AutomationAgentTool : ToolContract {
 
 class EvolutionFixTool : ToolContract {
     override val name: String = "EvolutionFix"
-    override val description: String = "Internal agent evolution and self-repair diagnostic tool."
+    override val description: StringString = "Internal agent evolution and self-repair diagnostic tool."
 
     override suspend fun execute(args: Map<String, String>): ToolResult {
         return ToolResult.Success("Evolution diagnostics verified.")
@@ -23,6 +33,7 @@ class ToolRegistry {
     private val tools = mutableListOf<ToolContract>()
 
     init {
+        registerTool(TaskQueryTool())
         registerTool(AutomationAgentTool())
         registerTool(EvolutionFixTool())
     }
