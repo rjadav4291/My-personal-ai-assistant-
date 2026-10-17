@@ -1,30 +1,47 @@
 package com.chintu.ai.tools
 
-class AutomationAgentTool : ToolContract {
-    override val name: String = "AutomationAgent"
-    override val description: String = "Executes automated system tasks, workflow routines, and device automation."
+/**
+ * New tool for the requested feature: feature_name
+ *
+ * This tool follows the same contract as the existing tools and is registered
+ * in the [ToolRegistry] during initialization.
+ */
+class FeatureNameTool : ToolContract {
+    override val name: String = "FeatureName"
+    override val description: String = "Executes the 'feature_name' functionality as requested."
 
+    /**
+     * Executes the feature logic.
+     *
+     * Expected arguments (all optional):
+     * - `operation` – a string describing the specific operation to perform.
+     * - any additional key‑value pairs required by the feature.
+     *
+     * @return a [ToolResult] indicating success or failure.
+     */
     override suspend fun execute(args: Map<String, String>): ToolResult {
-        val action = args["action"] ?: args["task"] ?: "Default routine check"
-        return ToolResult.Success("Automation routine for '$action' initiated successfully.")
+        // Extract the primary operation argument; fall back to a default action.
+        val operation = args["operation"] ?: "default"
+        // Here you would place the actual implementation of the feature.
+        // For now we return a success message indicating the operation was received.
+        return ToolResult.Success("Feature 'feature_name' executed with operation: '$operation'.")
     }
 }
 
-class EvolutionFixTool : ToolContract {
-    override val name: String = "EvolutionFix"
-    override val description: String = "Internal agent evolution and self-repair diagnostic tool."
-
-    override suspend fun execute(args: Map<String, String>): ToolResult {
-        return ToolResult.Success("Evolution diagnostics verified.")
-    }
-}
-
+/**
+ * Central registry for all available tools.
+ *
+ * Existing tools are registered in the initializer; the new [FeatureNameTool] is also
+ * added here so it can be discovered via `getTool` or `getAllTools`.
+ */
 class ToolRegistry {
     private val tools = mutableListOf<ToolContract>()
 
     init {
         registerTool(AutomationAgentTool())
         registerTool(EvolutionFixTool())
+        // Register the newly added feature tool
+        registerTool(FeatureNameTool())
     }
 
     fun registerTool(tool: ToolContract) {
