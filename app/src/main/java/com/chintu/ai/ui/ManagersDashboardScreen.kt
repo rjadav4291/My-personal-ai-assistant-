@@ -126,5 +126,8 @@ fun AgentCard(node: AgentNode, depth: Int) {
                 Spacer(modifier = Modifier.height(8.dp))
                 node.subAgents.forEach { child ->
                     AgentCard(node = child, depth = depth + 1)
-
-                
+                }
+            }
+        }
+    }
+}
