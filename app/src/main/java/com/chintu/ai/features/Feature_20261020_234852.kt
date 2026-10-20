@@ -1,6 +1,10 @@
-**
-
 package com.chintu.ai.tools
+interface ToolContract {
+    val name: String
+    val description: String
+    suspend fun exec(args: String): String = ""
+}
+
 
 // Existing tools -------------------------------------------------------------
 class AutomationAgentTool : ToolContract {
